@@ -17,11 +17,22 @@
           <h1>Mendez Game Room Inventory</h1>
           <p id="stats"></p>
           <p id="total"></p>
+          <p id="account" hidden><span id="who"></span> <button id="signout" type="button">Sign out</button></p>
         </header>
+
+        <section class="window" id="login" hidden>
+          <div class="title">Sign in</div>
+          <form id="login-form">
+            <label>Email<input id="email" type="email" autocomplete="username" required></label>
+            <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
+            <div class="actions"><button type="submit">Sign in</button></div>
+            <p id="login-error" class="wide" role="alert"></p>
+          </form>
+        </section>
 
         <nav id="tabs" aria-label="Collection sections"></nav>
 
-        <main>
+        <main id="app">
           <section class="window" id="form-window">
             <div class="title" id="form-title">Add item</div>
             <form id="form"></form>
@@ -56,6 +67,6 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>

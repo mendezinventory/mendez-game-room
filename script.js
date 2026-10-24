@@ -1,3 +1,19 @@
+import { firebaseConfig } from "./firebase-config.js";
+
+// Shared mode: turns on once firebase-config.js is filled in. Otherwise data stays in this browser.
+const CLOUD = !!firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PASTE");
+let fb = null, db = null, auth = null;
+if (CLOUD) {
+  const base = "https://www.gstatic.com/firebasejs/10.12.2/";
+  const [appMod, authMod, storeMod] = await Promise.all([
+    import(base + "firebase-app.js"), import(base + "firebase-auth.js"), import(base + "firebase-firestore.js"),
+  ]);
+  const app = appMod.initializeApp(firebaseConfig);
+  fb = { ...authMod, ...storeMod };
+  auth = authMod.getAuth(app);
+  db = storeMod.getFirestore(app);
+}
+
 const CONDITIONS = ["Mint", "Good", "Fair", "Poor", "For parts"];
 const REGIONS = ["NTSC (US)", "PAL", "Japan", "Other"];
 const WORKING = ["Working", "Needs repair", "Untested", "Not working"];
@@ -84,7 +100,8 @@ const SECTIONS = {
 };
 
 const KEY = "gameRoomInventory";
-let data = load();
+const emptyData = () => Object.fromEntries(Object.keys(SECTIONS).map(k => [k, []]));
+let data = CLOUD ? emptyData() : load();
 let current = "consoles";
 let editingId = null;
 const openGroups = new Set();
@@ -99,8 +116,15 @@ function load() {
   } catch (e) {}
   return Object.fromEntries(Object.keys(SECTIONS).map(k => [k, []]));
 }
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+function save(keys) {
+  if (!CLOUD) {
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+    return;
+  }
+  (keys || [current]).forEach(k => {
+    fb.setDoc(fb.doc(db, "inventory", k), { items: data[k] })
+      .catch(() => alert("Couldn't save that change. Check the internet connection and try again."));
+  });
 }
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const money = n => "$" + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -240,7 +264,7 @@ $("import").addEventListener("change", async e => {
     if (typeof parsed !== "object" || !Object.keys(SECTIONS).some(k => Array.isArray(parsed[k]))) throw new Error();
     Object.keys(SECTIONS).forEach(k => { if (!Array.isArray(parsed[k])) parsed[k] = []; });
     if (!confirm("Replace the current inventory with this file?")) return;
-    data = parsed; editingId = null; save(); renderAll();
+    data = parsed; editingId = null; save(Object.keys(SECTIONS)); renderAll();
   } catch (err) {
     alert("That file isn't a valid inventory export.");
   }
@@ -336,3 +360,35 @@ renderAll();
 const groupKeys = () => [...new Set(data[current].map(i => current + "|" + (i.console || "No console")))];
 $("expand-all").addEventListener("click", () => { groupKeys().forEach(k => openGroups.add(k)); renderList(); });
 $("collapse-all").addEventListener("click", () => { groupKeys().forEach(k => openGroups.delete(k)); renderList(); });
+
+// ---- Sign-in and live sync (shared mode only) ----
+if (CLOUD) {
+  $("tabs").hidden = $("app").hidden = true;
+  let unsubs = [];
+  fb.onAuthStateChanged(auth, user => {
+    unsubs.forEach(u => u()); unsubs = [];
+    const on = !!user;
+    $("tabs").hidden = $("app").hidden = !on;
+    $("login").hidden = on;
+    $("account").hidden = !on;
+    $("who").textContent = user ? user.email : "";
+    if (!on) { data = emptyData(); return; }
+    Object.keys(SECTIONS).forEach(k => {
+      unsubs.push(fb.onSnapshot(fb.doc(db, "inventory", k), snap => {
+        data[k] = snap.exists() ? (snap.data().items || []) : [];
+        renderTabs(); renderList();
+      }, () => alert("Couldn't load the inventory. This account may not have access.")));
+    });
+  });
+  $("login-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    $("login-error").textContent = "";
+    try {
+      await fb.signInWithEmailAndPassword(auth, $("email").value.trim(), $("password").value);
+      $("password").value = "";
+    } catch (err) {
+      $("login-error").textContent = "Wrong email or password.";
+    }
+  });
+  $("signout").addEventListener("click", () => fb.signOut(auth));
+}
