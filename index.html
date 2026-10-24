@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mendez Game Room Inventory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="console">
+    <div class="bezel">
+      <p class="bezel-label">DOT MATRIX WITH STEREO SOUND</p>
+      <div class="screen">
+        <header>
+          <h1>Mendez Game Room Inventory</h1>
+          <p id="stats"></p>
+          <p id="total"></p>
+        </header>
+
+        <nav id="tabs" aria-label="Collection sections"></nav>
+
+        <main>
+          <section class="window" id="form-window">
+            <div class="title" id="form-title">Add item</div>
+            <form id="form"></form>
+          </section>
+
+          <section class="window">
+            <div class="title"><span id="list-title">Items</span></div>
+            <div class="searchbar">
+              <input id="search" type="search" placeholder="Search" aria-label="Search">
+              <button id="expand-all" type="button">Expand all</button>
+              <button id="collapse-all" type="button">Collapse all</button>
+            </div>
+            <ul id="list"></ul>
+          </section>
+
+          <section class="window">
+            <div class="title">Backup</div>
+            <p>Your data is saved in this browser. Export a file to keep a copy or move it to another computer.</p>
+            <div class="row">
+              <button id="export" type="button">Export</button>
+              <label class="btn">Import<input id="import" type="file" accept=".json" hidden></label>
+              <label class="btn"><span id="csv-text">Import CSV</span><input id="import-csv" type="file" accept=".csv,text/csv" hidden></label>
+            </div>
+            <p>Import CSV adds rows to the tab you have open, so open the right tab first. Column names like Title, Console, Region, Value, and Location are matched automatically.</p>
+          </section>
+        </main>
+      </div>
+    </div>
+    <div class="controls" aria-hidden="true">
+      <div class="dpad"></div>
+      <div class="ab"><span></span><span></span></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
