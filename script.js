@@ -392,3 +392,11 @@ if (CLOUD) {
   });
   $("signout").addEventListener("click", () => fb.signOut(auth));
 }
+
+$("toggle-pw").addEventListener("click", () => {
+  const pw = $("password"), show = pw.type === "password";
+  pw.type = show ? "text" : "password";
+  $("toggle-pw").setAttribute("aria-pressed", show);
+  $("toggle-pw").setAttribute("aria-label", show ? "Hide password" : "Show password");
+  $("toggle-pw").textContent = show ? "🙈" : "👁";
+});

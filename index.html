@@ -24,7 +24,12 @@
           <div class="title">Sign in</div>
           <form id="login-form">
             <label>Email<input id="email" type="email" autocomplete="username" required></label>
-            <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
+            <label>Password
+              <span class="pw">
+                <input id="password" type="password" autocomplete="current-password" required>
+                <button id="toggle-pw" type="button" aria-label="Show password" aria-pressed="false">👁</button>
+              </span>
+            </label>
             <div class="actions"><button type="submit">Sign in</button></div>
             <p id="login-error" class="wide" role="alert"></p>
           </form>

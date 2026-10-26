@@ -52,7 +52,7 @@ header h1 { margin: 0 0 .5rem; font-size: clamp(1rem, 3.6vw, 1.6rem); line-heigh
 
 button, .btn, input, select, textarea { font: inherit; color: var(--g0); }
 
-#account button, #tabs button, .row button, .btn, form button, .item button, .searchbar button {
+#toggle-pw, #account button, #tabs button, .row button, .btn, form button, .item button, .searchbar button {
   background: var(--g0); color: var(--g3);
   border: 0; box-shadow: 3px 3px 0 var(--g1);
   padding: .55rem .8rem; cursor: pointer;
@@ -119,3 +119,5 @@ textarea { resize: vertical; min-height: 2.8rem; }
 #account button { padding: .3rem .5rem; font-size: .6rem; margin-left: .5rem; }
 #login { max-width: 420px; margin: 0 auto 1rem; }
 #login-error { margin: 0; min-height: 1.2em; color: var(--magenta); }
+.pw { display: flex; gap: .4rem; }
+#toggle-pw { padding: .3rem .7rem; font-size: 1rem; line-height: 1; }
