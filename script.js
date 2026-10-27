@@ -100,11 +100,15 @@ const SECTIONS = {
 };
 
 const KEY = "gameRoomInventory";
+// Lists are grouped by console (the Consoles tab itself is one flat list).
+const groupBy = sec => sec.fields.some(f => f.key === "console") ? "console" : null;
+const NONE = "Not set";
 const emptyData = () => Object.fromEntries(Object.keys(SECTIONS).map(k => [k, []]));
 let data = CLOUD ? emptyData() : load();
 let current = "consoles";
 let editingId = null;
 const openGroups = new Set();
+const closedLists = new Set(); // tabs whose whole list is hidden
 
 function load() {
   try {
@@ -168,19 +172,22 @@ function renderForm() {
 function renderList() {
   const sec = SECTIONS[current];
   const q = $("search").value.trim().toLowerCase();
-  $("list-title").textContent = sec.label;
-  const grouped = sec.fields.some(f => f.key === "console");
+  const closed = closedLists.has(current);
+  $("list-title").textContent = (closed ? "▶ " : "▼ ") + sec.label + " (" + data[current].length + ")";
+  $("list-toggle").setAttribute("aria-expanded", !closed);
+  $("searchbar").hidden = $("list").hidden = closed;
+  const gb = groupBy(sec), grouped = !!gb;
   $("search").placeholder = "Search " + sec.label.toLowerCase();
   $("expand-all").hidden = $("collapse-all").hidden = !grouped;
   const items = data[current]
     .filter(i => !q || Object.values(i).join(" ").toLowerCase().includes(q))
-    .sort((a, b) => (grouped ? (a.console || "~").localeCompare(b.console || "~") : 0) || a.name.localeCompare(b.name));
+    .sort((a, b) => (grouped ? (a[gb] || "~").localeCompare(b[gb] || "~") : 0) || a.name.localeCompare(b.name));
   if (!items.length) {
     $("list").innerHTML = `<li class="empty">${q ? "No matches." : `No ${sec.label.toLowerCase()} yet. Add one above.`}</li>`;
     return;
   }
   const row = i => {
-    const meta = sec.fields.filter(f => f.key !== "name" && !(grouped && f.key === "console") && i[f.key] !== "" && i[f.key] !== undefined && i[f.key] !== false)
+    const meta = sec.fields.filter(f => f.key !== "name" && !(grouped && f.key === gb) && i[f.key] !== "" && i[f.key] !== undefined && i[f.key] !== false)
       .map(f => f.type === "checkbox" ? f.label : f.key === "qty" ? (Number(i[f.key]) > 1 ? `x${i[f.key]}` : "") : (f.key === "value" || f.key === "target") ? money(i[f.key]) + (f.key === "value" && sec.fields.some(x => x.key === "qty") ? " each" : "") : esc(i[f.key])).filter(Boolean).join(", ");
     return `<li class="item" data-id="${i.id}">
       <div class="info"><div class="name">${esc(i.name)}</div><div class="meta">${meta}</div></div>
@@ -191,7 +198,7 @@ function renderList() {
   };
   if (!grouped) { $("list").innerHTML = items.map(row).join(""); return; }
   const groups = {};
-  items.forEach(i => (groups[i.console || "No console"] ??= []).push(i));
+  items.forEach(i => (groups[i[gb] || NONE] ??= []).push(i));
   $("list").innerHTML = Object.entries(groups).map(([name, list]) => {
     const open = !!q || openGroups.has(current + "|" + name);
     return `<li class="group"><button type="button" data-group="${esc(name)}" aria-expanded="${open}">${open ? "▼" : "▶"} ${esc(name)} (${list.length})</button></li>`
@@ -357,7 +364,7 @@ $("import-csv").addEventListener("change", async e => {
 
 renderAll();
 
-const groupKeys = () => [...new Set(data[current].map(i => current + "|" + (i.console || "No console")))];
+const groupKeys = () => [...new Set(data[current].map(i => current + "|" + (i[groupBy(SECTIONS[current])] || NONE)))];
 $("expand-all").addEventListener("click", () => { groupKeys().forEach(k => openGroups.add(k)); renderList(); });
 $("collapse-all").addEventListener("click", () => { groupKeys().forEach(k => openGroups.delete(k)); renderList(); });
 
@@ -399,4 +406,9 @@ $("toggle-pw").addEventListener("click", () => {
   $("toggle-pw").setAttribute("aria-pressed", show);
   $("toggle-pw").setAttribute("aria-label", show ? "Hide password" : "Show password");
   $("toggle-pw").textContent = show ? "🙈" : "👁";
+});
+
+$("list-toggle").addEventListener("click", () => {
+  closedLists.has(current) ? closedLists.delete(current) : closedLists.add(current);
+  renderList();
 });

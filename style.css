@@ -121,3 +121,4 @@ textarea { resize: vertical; min-height: 2.8rem; }
 #login-error { margin: 0; min-height: 1.2em; color: var(--magenta); }
 .pw { display: flex; gap: .4rem; }
 #toggle-pw { padding: .3rem .7rem; font-size: 1rem; line-height: 1; }
+#list-toggle { background: none; color: inherit; border: 0; box-shadow: none; padding: 0; font: inherit; text-shadow: none; text-align: left; width: 100%; cursor: pointer; }
