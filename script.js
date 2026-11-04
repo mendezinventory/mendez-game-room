@@ -111,6 +111,16 @@ try { RAWG_KEY = (await import("./rawg-config.js")).rawgKey || ""; } catch (e) {
 if (RAWG_KEY.startsWith("PASTE")) RAWG_KEY = "";
 const thumb = u => u.includes("/media/games/") ? u.replace("/media/games/", "/media/crop/420/280/games/") : u;
 
+// The total value is hidden until you click Show (this browser remembers your choice).
+let lastTotal = 0;
+let totalHidden = true;
+try { totalHidden = localStorage.getItem("showTotal") !== "yes"; } catch (e) {}
+function renderTotal() {
+  $("total").textContent = "Total value: " + (totalHidden ? "$•••••" : money(lastTotal));
+  $("toggle-total").textContent = totalHidden ? "Show" : "Hide";
+  $("toggle-total").setAttribute("aria-label", totalHidden ? "Show total value" : "Hide total value");
+}
+
 const emptyData = () => Object.fromEntries(Object.keys(SECTIONS).map(k => [k, []]));
 let data = CLOUD ? emptyData() : load();
 let current = "consoles";
@@ -150,7 +160,8 @@ function renderTabs() {
   const total = Object.entries(SECTIONS).filter(([, s]) => s.counts)
     .reduce((sum, [k]) => sum + data[k].reduce((t, i) => t + (Number(i.value) || 0) * (Number(i.qty) || 1), 0), 0);
   $("csv-text").textContent = "Import CSV into " + SECTIONS[current].label;
-  $("total").textContent = "Total value: " + money(total);
+  lastTotal = total;
+  renderTotal();
 }
 
 function renderForm() {
@@ -503,4 +514,10 @@ $("bulk-fill").addEventListener("click", async () => {
   save(["games"]); renderList();
   btn.disabled = false; btn.textContent = "Fill in missing info";
   alert(`Done. Checked ${filled} games.`);
+});
+
+$("toggle-total").addEventListener("click", () => {
+  totalHidden = !totalHidden;
+  try { localStorage.setItem("showTotal", totalHidden ? "no" : "yes"); } catch (e) {}
+  renderTotal();
 });

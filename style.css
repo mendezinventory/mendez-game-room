@@ -47,7 +47,9 @@ header h1 {
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 #stats { margin: 0; color: var(--muted); }
-#total { margin: .35rem 0 0; font-size: 1.25rem; font-weight: 700; color: var(--cyan); }
+#total-row { margin: .35rem 0 0; display: flex; gap: .75rem; justify-content: center; align-items: center; flex-wrap: wrap; }
+#total { font-size: 1.25rem; font-weight: 700; color: var(--cyan); }
+#toggle-total { padding: .25rem .8rem; font-size: .9rem; }
 #account { margin: .75rem 0 0; font-size: .95rem; color: var(--muted); }
 
 #tabs { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; padding: .25rem 0 1.25rem; }
