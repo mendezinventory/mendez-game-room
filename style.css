@@ -147,6 +147,15 @@ textarea { resize: vertical; min-height: 3rem; }
 .item button, .item .btn { padding: .4rem .8rem; font-size: .95rem; }
 .empty { padding: 2rem; text-align: center; color: var(--muted); }
 
+.thumb { width: 112px; height: 74px; object-fit: cover; border-radius: 8px; background: var(--panel-2); flex: none; }
+.hint { margin: 0 0 .5rem; color: var(--muted); }
+#lookup-results { display: grid; gap: .5rem; }
+#lookup-results:empty { display: none; }
+.pick { display: flex; align-items: center; gap: .75rem; text-align: left; width: 100%; font-weight: 400; border-color: var(--line); }
+.pick img { width: 84px; height: 56px; object-fit: cover; border-radius: 6px; flex: none; }
+.credit { text-align: center; color: var(--muted); font-size: .9rem; padding: 1.5rem 0 1rem; }
+.credit a { color: var(--cyan); }
+
 [hidden] { display: none !important; }
 
 @media (max-width: 560px) {

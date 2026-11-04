@@ -48,6 +48,7 @@ const SECTIONS = {
       { key: "region", label: "Region", type: "select", options: REGIONS },
       { key: "condition", label: "Condition", type: "select", options: CONDITIONS },
       { key: "complete", label: "Complete in box", type: "checkbox" },
+      { key: "image", label: "Image link (optional)" },
       { key: "value", label: "Value each ($)", type: "number" },
       { key: "location", label: "Location" },
       { key: "notes", label: "Notes", type: "textarea" },
@@ -103,6 +104,11 @@ const KEY = "gameRoomInventory";
 // Lists are grouped by console (the Consoles tab itself is one flat list).
 const groupBy = sec => sec.fields.some(f => f.key === "console") ? "console" : null;
 const NONE = "Not set";
+let RAWG_KEY = "";
+try { RAWG_KEY = (await import("./rawg-config.js")).rawgKey || ""; } catch (e) {}
+if (RAWG_KEY.startsWith("PASTE")) RAWG_KEY = "";
+const thumb = u => u.includes("/media/games/") ? u.replace("/media/games/", "/media/crop/420/280/games/") : u;
+
 const emptyData = () => Object.fromEntries(Object.keys(SECTIONS).map(k => [k, []]));
 let data = CLOUD ? emptyData() : load();
 let current = "consoles";
@@ -166,7 +172,7 @@ function renderForm() {
     }
     return `<label class="${f.type === "textarea" ? "wide" : ""}">${f.label}${input}</label>`;
   }).join("");
-  $("form").innerHTML = fields + `<div class="actions"><button type="submit">${editingId ? "Save" : "Add"}</button>${editingId ? '<button type="button" id="cancel">Cancel</button>' : ""}</div>`;
+  $("form").innerHTML = fields + `<div class="actions"><button type="submit">${editingId ? "Save" : "Add"}</button>${editingId ? '<button type="button" id="cancel">Cancel</button>' : ""}${current === "games" && RAWG_KEY ? '<button type="button" id="lookup">Look up game info</button>' : ""}</div><div class="wide" id="lookup-results"></div>`;
 }
 
 function renderList() {
@@ -179,6 +185,7 @@ function renderList() {
   const gb = groupBy(sec), grouped = !!gb;
   $("search").placeholder = "Search " + sec.label.toLowerCase();
   $("expand-all").hidden = $("collapse-all").hidden = !grouped;
+  $("bulk-fill").hidden = !(RAWG_KEY && current === "games");
   const items = data[current]
     .filter(i => !q || Object.values(i).join(" ").toLowerCase().includes(q))
     .sort((a, b) => (grouped ? (a[gb] || "~").localeCompare(b[gb] || "~") : 0) || a.name.localeCompare(b.name));
@@ -187,10 +194,12 @@ function renderList() {
     return;
   }
   const row = i => {
-    const meta = sec.fields.filter(f => f.key !== "name" && !(grouped && f.key === gb) && i[f.key] !== "" && i[f.key] !== undefined && i[f.key] !== false)
+    const meta = sec.fields.filter(f => f.key !== "name" && f.key !== "image" && !(grouped && f.key === gb) && i[f.key] !== "" && i[f.key] !== undefined && i[f.key] !== false)
       .map(f => f.type === "checkbox" ? f.label : f.key === "qty" ? (Number(i[f.key]) > 1 ? `x${i[f.key]}` : "") : (f.key === "value" || f.key === "target") ? money(i[f.key]) + (f.key === "value" && sec.fields.some(x => x.key === "qty") ? " each" : "") : esc(i[f.key])).filter(Boolean).join(", ");
+    const img = i.image && /^https?:\/\//.test(i.image)
+      ? `<img class="thumb" loading="lazy" alt="" src="${esc(thumb(i.image))}" data-full="${esc(i.image)}" onerror="this.onerror=null;this.src=this.dataset.full">` : "";
     return `<li class="item" data-id="${i.id}">
-      <div class="info"><div class="name">${esc(i.name)}</div><div class="meta">${meta}</div></div>
+      ${img}<div class="info"><div class="name">${esc(i.name)}</div><div class="meta">${meta}</div></div>
       ${sec.fields.some(f => f.key === "value") ? `<a class="btn" target="_blank" rel="noopener" href="https://www.pricecharting.com/search-products?type=prices&q=${encodeURIComponent([i.name, i.console].filter(Boolean).join(" "))}">Price</a>` : ""}
       <button type="button" data-act="edit">Edit</button>
       <button type="button" data-act="delete">Delete</button>
@@ -293,6 +302,7 @@ const ALIASES = {
   working: ["working", "status"],
   complete: ["complete", "completeinbox", "cib"],
   target: ["target", "pricetopay"],
+  image: ["image", "imageurl", "cover", "picture", "photo"],
   notes: ["notes", "note", "comments"],
 };
 const norm = t => String(t).toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z0-9]/g, "");
@@ -411,4 +421,84 @@ $("toggle-pw").addEventListener("click", () => {
 $("list-toggle").addEventListener("click", () => {
   closedLists.has(current) ? closedLists.delete(current) : closedLists.add(current);
   renderList();
+});
+
+// ---- Game lookup (RAWG): fills year, rating and picture ----
+const ESRB = { "Everyone": "E", "Everyone 10+": "E10+", "Teen": "T", "Mature": "M", "Adults Only": "AO" };
+const flat = t => String(t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+let lastResults = [];
+
+async function rawgSearch(title) {
+  const res = await fetch(`https://api.rawg.io/api/games?key=${encodeURIComponent(RAWG_KEY)}&search=${encodeURIComponent(title)}&search_precise=true&page_size=10`);
+  if (!res.ok) throw new Error(res.status);
+  return (await res.json()).results || [];
+}
+const platformsOf = r => (r.platforms || []).map(p => p.platform.name);
+function pickBest(results, consoleName) {
+  const c = flat(consoleName);
+  const match = c && results.find(r => platformsOf(r).some(p => flat(p).includes(c) || c.includes(flat(p))));
+  return match || results[0];
+}
+function infoOf(r) {
+  return { year: r.released ? r.released.slice(0, 4) : "", rating: ESRB[r.esrb_rating?.name] || "", image: r.background_image || "" };
+}
+
+$("form").addEventListener("click", async e => {
+  const form = $("form");
+  if (e.target.id === "lookup") {
+    const title = form.elements["name"].value.trim();
+    if (!title) { alert("Type the game title first."); return; }
+    const box = $("lookup-results");
+    box.textContent = "Searching...";
+    try {
+      lastResults = await rawgSearch(title);
+      const c = flat(form.elements["console"]?.value);
+      lastResults.sort((a, b) => (c && platformsOf(b).some(p => flat(p).includes(c)) ? 1 : 0) - (c && platformsOf(a).some(p => flat(p).includes(c)) ? 1 : 0));
+      box.innerHTML = lastResults.length
+        ? '<p class="hint">Pick the right one to fill in the year, rating, and picture:</p>' + lastResults.slice(0, 6).map((r, n) =>
+            `<button type="button" class="pick" data-pick="${n}">${r.background_image ? `<img alt="" src="${esc(thumb(r.background_image))}">` : ""}<span><b>${esc(r.name)}</b><br>${esc((r.released || "").slice(0, 4))} ${esc(platformsOf(r).slice(0, 4).join(", "))}</span></button>`).join("")
+        : '<p class="hint">No matches found. Try a shorter title.</p>';
+    } catch (err) {
+      box.textContent = "Couldn't reach RAWG. Check the API key and your connection.";
+    }
+  }
+  const pick = e.target.closest("[data-pick]");
+  if (pick) {
+    const info = infoOf(lastResults[Number(pick.dataset.pick)]);
+    for (const [k, v] of Object.entries(info)) {
+      const el = form.elements[k];
+      if (el && v && !el.value) el.value = v;
+    }
+    $("lookup-results").innerHTML = '<p class="hint">Filled in. Click Add or Save to keep it.</p>';
+  }
+});
+
+$("bulk-fill").addEventListener("click", async () => {
+  const todo = data.games.filter(g => !g.image || !g.year || !g.rating).map(g => g.id);
+  if (!todo.length) { alert("Every game already has a picture, year, and rating."); return; }
+  if (!confirm(`Look up ${todo.length} games and fill in blank pictures, years, and ratings? Anything you've already entered stays as it is. Some matches may be wrong, so give the results a quick look.`)) return;
+  const btn = $("bulk-fill");
+  btn.disabled = true;
+  let filled = 0;
+  for (let n = 0; n < todo.length; n++) {
+    btn.textContent = `Filling ${n + 1}/${todo.length}`;
+    const g = data.games.find(x => x.id === todo[n]);
+    if (!g) continue;
+    try {
+      const best = pickBest(await rawgSearch(g.name), g.console);
+      if (best) {
+        const info = infoOf(best);
+        for (const [k, v] of Object.entries(info)) if (v && !g[k]) g[k] = v;
+        filled++;
+      }
+    } catch (err) {
+      alert("Stopped: couldn't reach RAWG. The key may be wrong or the monthly limit may be used up.");
+      break;
+    }
+    if ((n + 1) % 20 === 0) { save(["games"]); renderList(); }
+    await new Promise(r => setTimeout(r, 200));
+  }
+  save(["games"]); renderList();
+  btn.disabled = false; btn.textContent = "Fill in missing info";
+  alert(`Done. Checked ${filled} games.`);
 });
